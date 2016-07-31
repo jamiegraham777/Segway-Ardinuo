@@ -51,7 +51,7 @@ float aa_constant = 0.005; //this means 0.5% of the accelerometer reading is fed
 //Debug 
 
 //Note: Set Sabertooth dip switches on the board for simplified serial and 9600 Baudrate. 
-#define SABER_TX_PIN  13 //Digital pin 13 is serial transmit pin to sabertooth
+#define SABER_TX_PIN  10 //Digital pin 13 is serial transmit pin to sabertooth
 #define SABER_RX_PIN  12 //Not used but still initialised, Digital pin 12 is serial receive from Sabertooth
 #define SABER_BAUDRATE  9600 //set baudrate to match sabertooth dip settings
 
@@ -385,8 +385,7 @@ void read_accel_gyro()  {     //digital accel/gyro is read here
   
   // get current FIFO count
   fifoCount = mpu.getFIFOCount();
-  
-  // check for overflow (this should never happen unless our code is too inefficient)
+
   if ((mpuIntStatus & 0x10) || fifoCount == 1024)
     {
       // reset so we can continue cleanly
@@ -401,7 +400,10 @@ void read_accel_gyro()  {     //digital accel/gyro is read here
   else if (mpuIntStatus & 0x02)
     {
       // wait for correct available data length, should be a VERY short wait
+
+      
       while (fifoCount < packetSize) fifoCount = mpu.getFIFOCount();
+
       // read a packet from FIFO
       mpu.getFIFOBytes(fifoBuffer, packetSize);
       // track FIFO count here in case there is > 1 packet available
@@ -420,11 +422,19 @@ void read_accel_gyro()  {     //digital accel/gyro is read here
       angular_rate_X = ((double)gyro[0]/131.0); // Gyro for steering, in degs/sec.
       angular_rate_Y = ((double)gyro[1]/131.0); // Gyro for tilt, in degs/sec.
       angular_rate_Z = ((double)gyro[2]/131.0); // Gyro for X, in degs/sec.
+
+      Serial.println("  angular_rate_X: ");
+      Serial.print(angular_rate_X);
+      Serial.println("  angular_rate_Y: ");
+      Serial.print(angular_rate_Y);
+      Serial.println("  angular_rate_Z: ");
+      Serial.print(angular_rate_Z);
      
       angular_rate_X = angular_rate_X * RAD_TO_DEG; // Gyro for steering, in degs/sec.
       angular_rate_Y = angular_rate_Y * RAD_TO_DEG; // Gyro for tilt, 
       angular_rate_Z = angular_rate_Z * RAD_TO_DEG; // Gyro for X
-    
+
+
     } //end else if (mpuIntStatus & 0x02)
 }//end of read_accel_gyro()  
 
@@ -487,6 +497,9 @@ void do_calculations()  {     //do_calculations here
   
   //Used to adjust steering from drift
   gangleratedeg2 = angular_rate_X - initial_angular_rate_X;  //IDH subtract curent value from inital value to get delta.
+
+      Serial.print(" gangeratedeg2: ");
+      Serial.println( gangleratedeg2);
   
   if (SteerLeftPin == 1 && SteerRightPin == 1){ // NO steering wanted. Use second gyro to maintain a (roughly) straight line heading (it will drift a bit).
                         
@@ -500,6 +513,9 @@ void do_calculations()  {     //do_calculations here
       //also, when coming to a stop, one motor has a bit more friction than the other so as this motor stops first then as board
       //comes to standstill it spins round and you can fall off. This is original reason I built in this feature.
       //if motors have same friction you will not notice it so much.
+
+       Serial.print(" SteerCorrect: ");
+      Serial.println(SteerCorrect);
     }
     SteerValue = 512;            
   }
@@ -527,6 +543,8 @@ void do_calculations()  {     //do_calculations here
   // Balancetrim is front/back balance tip adjustment from switch
   // Sensor tilt number below is Determined experimentally. Bigger is more tilted forward.  It needs to change if you adjust ANGLE_GAIN.
   x_accdeg = (float)((SG_filter_result - (80 + balancetrim)) * (1.0));  
+      Serial.print("  x_accdeg: ");
+      Serial.println(x_accdeg);
   
   if (x_accdeg < -72) x_accdeg = -72; //put in range.
   if (x_accdeg > 72) x_accdeg = 72;
@@ -535,6 +553,8 @@ void do_calculations()  {     //do_calculations here
   gangleratedeg = (float)(angular_rate_Y - initial_angular_rate_Y); // IDH        
   if (gangleratedeg < -110) gangleratedeg = -110;
   if (gangleratedeg > 110) gangleratedeg = 110;
+      Serial.print("  gangleratedeg: ");
+      Serial.println(gangleratedeg);
    
   //Key calculations. Gyro measures rate of tilt gangleratedeg in degrees. We know time since last measurement is cycle_time (10ms) so can work out much we have tipped over since last measurement
   //What is ti variable? Strictly it should be 1. However if you tilt board, then it moves along at an angle, then SLOWLY comes back to level point as it is moving along
@@ -544,11 +564,16 @@ void do_calculations()  {     //do_calculations here
   //potentiometer is useful for this sort of experiment. You can alter any variable on the fly by temporarily using the potentiometer to adjust it and see what effect it has
 
   gyroangle_dt = (float) ti_constant * cycle_time * gangleratedeg; //e.g  = 3*0.01*gyro_reading
- 
+       Serial.print("  gyroangle_dt: ");
+      Serial.println(gyroangle_dt);
   gangleraterads = (float) gangleratedeg * 0.017453; //convert to radians - just a scaling issue from history
+       Serial.print("  gyroangle_dt in rads: ");
+      Serial.println(gangleraterads);
 
   //Complementary Filter.
   angle = (float) ((1-aa_constant) * (angle + gyroangle_dt)) + (aa_constant * x_accdeg);//aa=(0.005) allows us to feed a bit (0.5%) of the accelerometer data into the angle calculation
+         Serial.print("  angle: ");
+      Serial.println(angle);
   //so it slowly corrects the gyro (which drifts slowly with time). Accel sensitive to vibration though so aa does not want to be too large.
   //this is why these boards do not work if an accel only is used. We use gyro to do short term tilt measurements because it is insensitive to vibration
 
@@ -558,6 +583,8 @@ void do_calculations()  {     //do_calculations here
   //Δt = sampling rate, τ = time constant greater than timescale of typical accelerometer noise
  
   anglerads = (float) angle * 0.017453; //converting to radians again a historic scaling issue from past software
+        Serial.print("  anglerads: ");
+      Serial.println(angle);
   
   balance_torque = (float) (ACCEL_GAIN * anglerads) +  //from accelerometer
     (GYRO_GAIN * gangleraterads); //from Gyro 
@@ -654,8 +681,10 @@ void set_motor()   {
         SABER_MOTOR2_FULL_REVERSE,
         SABER_MOTOR2_FULL_FORWARD);
                          
-  SaberSerial.write ((byte) cSpeedVal_Motor1);
-  SaberSerial.write ((byte) cSpeedVal_Motor2);
+//  SaberSerial.write ((byte) cSpeedVal_Motor1);
+//  SaberSerial.write ((byte) cSpeedVal_Motor2);
+  SaberSerial.write ((byte) 250);
+  SaberSerial.write ((byte) 250);
 }
 
   
