@@ -51,8 +51,8 @@ float aa_constant = 0.005; //this means 0.5% of the accelerometer reading is fed
 //Debug 
 
 //Note: Set Sabertooth dip switches on the board for simplified serial and 9600 Baudrate. 
-#define SABER_TX_PIN  10 //Digital pin 13 is serial transmit pin to sabertooth
-#define SABER_RX_PIN  12 //Not used but still initialised, Digital pin 12 is serial receive from Sabertooth
+#define SABER_TX_PIN  12 //Digital pin 13 is serial transmit pin to sabertooth
+#define SABER_RX_PIN  11 //Not used but still initialised, Digital pin 12 is serial receive from Sabertooth
 #define SABER_BAUDRATE  9600 //set baudrate to match sabertooth dip settings
 
 //simplifierd serial limits for each motor
@@ -73,7 +73,7 @@ void initSabertooth (void)  { //initialize software to communicate with sabertoo
 }
 
 //note MPU6050 connections: 
-//SCL = A5
+//SCL = A5  //gyroscope and acceleronmotor 
 //SDA = A4
 //INT   = Digital 2 on arduino Uno
 //Vcc  = 5V
@@ -680,11 +680,26 @@ void set_motor()   {
         100,
         SABER_MOTOR2_FULL_REVERSE,
         SABER_MOTOR2_FULL_FORWARD);
-                         
-//  SaberSerial.write ((byte) cSpeedVal_Motor1);
-//  SaberSerial.write ((byte) cSpeedVal_Motor2);
-  SaberSerial.write ((byte) 250);
-  SaberSerial.write ((byte) 250);
+
+        Serial.println(" Motor 1 forward: ");
+        Serial.print(SABER_MOTOR1_FULL_FORWARD);
+        Serial.println(" Motor 1 reverse: ");
+        Serial.print(SABER_MOTOR1_FULL_REVERSE);
+        
+        Serial.println(" Motor 2 forward: ");
+        Serial.print(SABER_MOTOR2_FULL_FORWARD);
+        Serial.println(" Motor 2 reverse: ");
+        Serial.print(SABER_MOTOR2_FULL_REVERSE);
+
+        Serial.println(" Motor 2 SPEED 1: ");
+        Serial.print(cSpeedVal_Motor1);
+        Serial.println(" Motor 2 SPEED 2: ");
+        Serial.print(cSpeedVal_Motor2);
+        
+ SaberSerial.write ((byte) cSpeedVal_Motor1);
+  SaberSerial.write ((byte) cSpeedVal_Motor2);
+//  SaberSerial.write ((byte) 250);
+//  SaberSerial.write ((byte) 250);
 }
 
   
